@@ -5,7 +5,7 @@ Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" 
 ## What this does
 
 - Runs directly in the Raspberry Pi console on Raspberry Pi OS Lite
-- Accepts local questions from keyboard input in a full-screen terminal UI
+- Accepts local messages from keyboard input in a full-screen terminal UI
 - Stores questions in a local queue on the Pi
 - Sends only one question at a time to the responder's T-Beam setup
 - Waits for a reply before advancing the queue
@@ -111,8 +111,7 @@ Before live use you will likely need to:
 
 ## Operator flow
 
-1. Enter a name or callsign
-2. Enter the question
-3. Submit the query to the core
-4. The question becomes active when the radio path is free
-5. A reply advances the queue and moves the exchange into history
+1. Write the message
+2. Press `Enter` to send
+3. The question becomes active when the radio path is free
+4. A reply advances the queue and moves the exchange into history

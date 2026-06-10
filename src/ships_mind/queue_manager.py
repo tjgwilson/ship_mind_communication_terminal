@@ -75,10 +75,7 @@ class QueueManager:
 
     async def enqueue(self, payload: QuestionCreate) -> Question:
         async with self._lock:
-            question = Question(
-                sender_name=payload.sender_name.strip() or "Unlisted",
-                text=payload.text.strip(),
-            )
+            question = Question(text=payload.text.strip())
             self._questions.append(question)
             self._save()
             return question

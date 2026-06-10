@@ -56,10 +56,8 @@ class ShipCoreRuntime:
 
         self.gateway.send_question(activated)
 
-    async def submit_question(self, sender_name: str, text: str):
-        question = await self.queue_manager.enqueue(
-            QuestionCreate(sender_name=sender_name, text=text)
-        )
+    async def submit_question(self, text: str):
+        question = await self.queue_manager.enqueue(QuestionCreate(text=text))
         await self.dispatch_next_question()
         return question
 

@@ -19,7 +19,7 @@ class GatewayConfig:
 class MeshtasticGateway:
     def __init__(self, config: GatewayConfig) -> None:
         self._config = config
-        self._online = config.mode == "mock"
+        self._online = False
         self._client = None
 
     @property
@@ -37,7 +37,6 @@ class MeshtasticGateway:
     def connect(self) -> None:
         if self._config.mode == "mock":
             logger.info("Starting Meshtastic gateway in mock mode")
-            self._online = True
             return
 
         if self._config.mode != "serial":
@@ -63,7 +62,6 @@ class MeshtasticGateway:
 
         message = (
             "Ship's Core query\n"
-            f"From: {question.sender_name}\n"
             f"Question ID: {question.id}\n"
             f"Question: {question.text}"
         )

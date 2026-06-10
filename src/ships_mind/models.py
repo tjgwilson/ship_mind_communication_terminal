@@ -20,8 +20,7 @@ class QuestionStatus(str, Enum):
 
 class Question(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
-    sender_name: str = Field(default="Unlisted", max_length=80)
-    text: str = Field(min_length=1, max_length=500)
+    text: str = Field(min_length=1, max_length=50)
     status: QuestionStatus = QuestionStatus.queued
     created_at: str = Field(default_factory=utc_now)
     sent_at: str | None = None
@@ -31,8 +30,7 @@ class Question(BaseModel):
 
 
 class QuestionCreate(BaseModel):
-    sender_name: str = Field(default="Unlisted", max_length=80)
-    text: str = Field(min_length=1, max_length=500)
+    text: str = Field(min_length=1, max_length=50)
 
 
 class ReplyCreate(BaseModel):
