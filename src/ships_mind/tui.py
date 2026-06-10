@@ -153,7 +153,9 @@ class ShipCoreConsole(App[None]):
 
         self._last_render_key = render_key
         status_line = self.query_one("#status_line", Static)
-        status_line.update("SHIPS CORE ACTIVE" if state.radio_online else "SHIPS CORE OFFLINE")
+        mode = self.runtime.gateway.mode.upper()
+        status = "ACTIVE" if state.radio_online else "OFFLINE"
+        status_line.update(f"SHIPS CORE {status} [{mode}]")
 
         current_log = self.query_one("#current_log", Static)
         current_log.update(self._render_queue_lines(current_questions))

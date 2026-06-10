@@ -90,6 +90,20 @@ Example for user `tjgw`:
 ./scripts/install_console_autostart.sh tjgw
 ```
 
+The autostart hook launches the app in `serial` Meshtastic mode. The default radio path is `/dev/ttyACM0`.
+
+If your T-Beam appears on a different serial path, edit the generated block in `~/.bash_profile` and change:
+
+```bash
+export SHIP_MESHTASTIC_DEVICE="${SHIP_MESHTASTIC_DEVICE:-/dev/ttyACM0}"
+```
+
+For example:
+
+```bash
+export SHIP_MESHTASTIC_DEVICE="${SHIP_MESHTASTIC_DEVICE:-/dev/ttyUSB0}"
+```
+
 3. If you previously enabled the old `tty1` service, disable it:
 
 ```bash
