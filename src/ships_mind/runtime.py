@@ -60,6 +60,7 @@ class ShipCoreRuntime:
 
     async def pump(self) -> None:
         await self._apply_mock_reply_if_due()
+        await self._apply_gateway_reply_if_available()
         await self.dispatch_next_question()
 
     async def _apply_mock_reply_if_due(self) -> None:
@@ -80,6 +81,21 @@ class ShipCoreRuntime:
 
         reply = self._mock_reply_text(active.text)
         await self.queue_manager.answer_active(ReplyCreate(reply_text=reply))
+
+    async def _apply_gateway_reply_if_available(self) -> None:
+        if self.gateway.mode == "mock":
+            return
+
+        active = await self.queue_manager.active_question()
+        if active is None:
+            self.gateway.consume_reply()
+            return
+
+        incoming = self.gateway.consume_reply()
+        if incoming is None:
+            return
+
+        await self.queue_manager.answer_active(ReplyCreate(reply_text=incoming.text))
 
     def _mock_reply_text(self, prompt: str) -> str:
         cleaned = prompt.strip().rstrip("?.!")

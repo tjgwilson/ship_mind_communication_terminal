@@ -101,13 +101,13 @@ Optional environment variables:
 This version keeps a swappable gateway layer with:
 
 - `mock` mode for local testing
-- `serial` mode placeholder for a USB-connected T-Beam
+- `serial` mode for a USB-connected T-Beam with outbound questions and inbound text replies
 
 Before live use you will likely need to:
 
 1. Confirm the connected T-Beam serial path with `ls /dev/ttyACM* /dev/ttyUSB*`
 2. Pair and test the device with the Meshtastic Python tooling
-3. Extend `src/ships_mind/meshtastic_gateway.py` for the exact responder node and inbound reply flow you want
+3. Optionally set `SHIPS_MIND_RESPONDER_ID` to the other node ID, such as `!abcd1234`, if you want the app to ignore replies from any other mesh node
 
 ## Operator flow
 
