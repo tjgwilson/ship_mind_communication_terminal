@@ -52,13 +52,13 @@ chmod +x scripts/start_pi.sh scripts/start_mock.sh
 
 ## Run with the radio
 
-The normal Pi launcher starts in `serial` Meshtastic mode and uses `/dev/ttyACM0` by default:
+The normal Pi launcher starts in `serial` Meshtastic mode and automatically uses the first matching `/dev/ttyACM*` or `/dev/ttyUSB*` device:
 
 ```bash
 ./scripts/start_pi.sh
 ```
 
-If your T-Beam appears on a different serial path, set it before launching:
+If you need to force a specific serial path, set it before launching:
 
 ```bash
 SHIP_MESHTASTIC_DEVICE=/dev/ttyUSB0 ./scripts/start_pi.sh
