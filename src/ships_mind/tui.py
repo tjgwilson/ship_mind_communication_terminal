@@ -170,10 +170,8 @@ class ShipCoreConsole(App[None]):
             await archive_log.mount(Static("No responses recorded yet.", classes="empty_note"))
 
     def _build_log_entry(self, question: Question, include_reply: bool) -> Vertical:
-        container = Vertical(classes="log_entry")
-
         timestamp = question.answered_at if include_reply else question.created_at
-        container.mount(
+        children = [
             Static(
                 Text.assemble(
                     (format_timestamp(timestamp), "cyan"),
@@ -182,11 +180,11 @@ class ShipCoreConsole(App[None]):
                 ),
                 classes="log_head",
             )
-        )
-        container.mount(Static(f"QUESTION\n{question.text}", classes="log_block"))
+        ]
+        children.append(Static(f"QUESTION\n{question.text}", classes="log_block"))
         if include_reply:
-            container.mount(Static(f"REPLY\n{question.reply_text or ''}", classes="log_block"))
-        return container
+            children.append(Static(f"REPLY\n{question.reply_text or ''}", classes="log_block"))
+        return Vertical(*children, classes="log_entry")
 
     def _status_style(self, status: str) -> str:
         return {
