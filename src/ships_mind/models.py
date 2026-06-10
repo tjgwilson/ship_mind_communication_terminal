@@ -20,7 +20,7 @@ class QuestionStatus(str, Enum):
 
 class Question(BaseModel):
     id: str = Field(default_factory=lambda: uuid4().hex)
-    text: str = Field(min_length=1, max_length=50)
+    text: str = Field(min_length=1, max_length=100)
     status: QuestionStatus = QuestionStatus.queued
     created_at: str = Field(default_factory=utc_now)
     sent_at: str | None = None
@@ -30,7 +30,7 @@ class Question(BaseModel):
 
 
 class QuestionCreate(BaseModel):
-    text: str = Field(min_length=1, max_length=50)
+    text: str = Field(min_length=1, max_length=100)
 
 
 class ReplyCreate(BaseModel):

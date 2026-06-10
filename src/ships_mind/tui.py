@@ -112,6 +112,7 @@ class ShipCoreConsole(App[None]):
     def __init__(self) -> None:
         super().__init__()
         self.runtime = ShipCoreRuntime()
+        self._last_render_key: tuple | None = None
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
@@ -119,10 +120,10 @@ class ShipCoreConsole(App[None]):
         with Horizontal(id="main"):
             with Vertical(classes="panel", id="entry_panel"):
                 yield Static("UPLINK INPUT", classes="panel_title")
-                yield Input(placeholder="Write message and press Enter", id="question_input", max_length=50)
+                yield Input(placeholder="Write message and press Enter", id="question_input", max_length=100)
                 yield Static(
                     "Write message, press Enter, await response.\n"
-                    "Messages are limited to 50 characters.\n"
+                    "Messages are limited to 100 characters.\n"
                     "Replies appear from the radio channel.",
                     id="flash_message",
                 )
@@ -150,21 +151,52 @@ class ShipCoreConsole(App[None]):
 
     async def refresh_view(self) -> None:
         state = await self.runtime.state()
+        current_questions = state.current_questions[:10]
+        answered_questions = state.answered_questions[:5]
+        render_key = (
+            state.radio_online,
+            tuple(
+                (
+                    question.id,
+                    question.status.value,
+                    question.text,
+                    question.reply_text,
+                    question.created_at,
+                    question.answered_at,
+                )
+                for question in current_questions
+            ),
+            tuple(
+                (
+                    question.id,
+                    question.status.value,
+                    question.text,
+                    question.reply_text,
+                    question.created_at,
+                    question.answered_at,
+                )
+                for question in answered_questions
+            ),
+        )
+        if render_key == self._last_render_key:
+            return
+
+        self._last_render_key = render_key
         status_line = self.query_one("#status_line", Static)
         status_line.update("SHIPS CORE ACTIVE" if state.radio_online else "REFERENCE LISTENING")
 
         current_log = self.query_one("#current_log", Vertical)
         await current_log.remove_children()
-        if state.current_questions:
-            for question in state.current_questions[:10]:
+        if current_questions:
+            for question in current_questions:
                 await current_log.mount(self._build_log_entry(question, include_reply=False))
         else:
             await current_log.mount(Static("No current questions in the queue.", classes="empty_note"))
 
         archive_log = self.query_one("#archive_log", Vertical)
         await archive_log.remove_children()
-        if state.answered_questions:
-            for question in state.answered_questions[:8]:
+        if answered_questions:
+            for question in answered_questions:
                 await archive_log.mount(self._build_log_entry(question, include_reply=True))
         else:
             await archive_log.mount(Static("No responses recorded yet.", classes="empty_note"))
@@ -203,8 +235,8 @@ class ShipCoreConsole(App[None]):
             flash.update("Question field is empty.")
             return
 
-        if len(text) > 50:
-            flash.update("Message too long. Keep it under 50 characters.")
+        if len(text) > 100:
+            flash.update("Message too long. Keep it under 100 characters.")
             return
 
         await self.runtime.submit_question(text)
