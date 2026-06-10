@@ -47,7 +47,21 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-chmod +x scripts/start_pi.sh
+chmod +x scripts/start_pi.sh scripts/start_mock.sh
+```
+
+## Run with the radio
+
+The normal Pi launcher starts in `serial` Meshtastic mode and uses `/dev/ttyACM0` by default:
+
+```bash
+./scripts/start_pi.sh
+```
+
+If your T-Beam appears on a different serial path, set it before launching:
+
+```bash
+SHIP_MESHTASTIC_DEVICE=/dev/ttyUSB0 ./scripts/start_pi.sh
 ```
 
 ## Run in mock mode
@@ -55,8 +69,7 @@ chmod +x scripts/start_pi.sh
 Mock mode keeps the full queue flow but generates an automatic reply after a short delay so you can test the screen without the radio link:
 
 ```bash
-source .venv/bin/activate
-./scripts/start_pi.sh
+./scripts/start_mock.sh
 ```
 
 ## Run on boot in the Pi console
