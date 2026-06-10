@@ -64,6 +64,13 @@ If you need to force a specific serial path, set it before launching:
 SHIP_MESHTASTIC_DEVICE=/dev/ttyUSB0 ./scripts/start_pi.sh
 ```
 
+If no radio device is found, run:
+
+```bash
+chmod +x scripts/check_radio.sh
+./scripts/check_radio.sh
+```
+
 ## Run in mock mode
 
 Mock mode keeps the full queue flow but generates an automatic reply after a short delay so you can test the screen without the radio link:
