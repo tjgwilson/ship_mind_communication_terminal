@@ -3,13 +3,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime
 
-from rich.text import Text
 from textual import on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Input, Static
 
-from .models import Question
 from .runtime import ShipCoreRuntime
 
 logging.basicConfig(level=logging.INFO)
@@ -74,47 +72,7 @@ class ShipCoreConsole(App[None]):
         height: 1fr;
         overflow-y: auto;
         padding: 1;
-    }
-
-    .log_entry {
-        border: solid #1f7a45;
-        margin-bottom: 1;
-        padding: 0 1 1 1;
-        height: auto;
-    }
-
-    .log_head {
         color: #8effb0;
-        text-style: bold;
-    }
-
-    .log_block {
-        border: round #113a20;
-        margin-top: 1;
-        padding: 0 1;
-        color: #d3ffe1;
-    }
-
-    .current_entry {
-        height: 6;
-        min-height: 6;
-        max-height: 6;
-    }
-
-    .current_entry .log_block {
-        height: 2;
-        overflow: hidden;
-    }
-
-    .archive_entry {
-        height: 12;
-        min-height: 12;
-        max-height: 12;
-    }
-
-    .archive_entry .log_block {
-        height: 4;
-        overflow: hidden;
     }
     """
 
@@ -137,15 +95,14 @@ class ShipCoreConsole(App[None]):
                 yield Input(placeholder="Write message and press Enter", id="question_input", max_length=100)
             with Vertical(classes="panel"):
                 yield Static("QUESTION QUEUE", classes="panel_title")
-                yield Vertical(id="current_log", classes="log_panel")
+                yield Static("", id="current_log", classes="log_panel")
             with Vertical(classes="panel"):
                 yield Static("QUESTION LOG", classes="panel_title")
-                yield Vertical(id="archive_log", classes="log_panel")
+                yield Static("", id="archive_log", classes="log_panel")
         yield Footer()
 
     async def on_mount(self) -> None:
         self.title = "Ship's Core"
-        self.sub_title = "Terminal Console"
         await self.runtime.initialize()
         await self.refresh_view()
         self.set_interval(1.0, self._schedule_tick)
@@ -193,43 +150,42 @@ class ShipCoreConsole(App[None]):
         status_line = self.query_one("#status_line", Static)
         status_line.update("SHIPS CORE ACTIVE" if state.radio_online else "REFERENCE LISTENING")
 
-        current_log = self.query_one("#current_log", Vertical)
-        await current_log.remove_children()
-        if current_questions:
-            for question in current_questions:
-                await current_log.mount(self._build_log_entry(question, include_reply=False))
+        current_log = self.query_one("#current_log", Static)
+        current_log.update(self._render_queue_lines(current_questions))
 
-        archive_log = self.query_one("#archive_log", Vertical)
-        await archive_log.remove_children()
-        if answered_questions:
-            for question in answered_questions:
-                await archive_log.mount(self._build_log_entry(question, include_reply=True))
+        archive_log = self.query_one("#archive_log", Static)
+        archive_log.update(self._render_log_lines(answered_questions))
 
-    def _build_log_entry(self, question: Question, include_reply: bool) -> Vertical:
-        timestamp = question.answered_at if include_reply else question.created_at
-        children = [
-            Static(
-                Text.assemble(
-                    (format_timestamp(timestamp), "cyan"),
-                    ("  ", ""),
-                    (question.status.value.upper(), self._status_style(question.status.value)),
-                ),
-                classes="log_head",
+    def _render_queue_lines(self, questions) -> str:
+        if not questions:
+            return ""
+
+        lines = []
+        for question in questions:
+            lines.append(
+                f"{format_timestamp(question.created_at)}: {question.status.value}: {self._clip(question.text, 44)}"
             )
-        ]
-        children.append(Static(question.text, classes="log_block"))
-        if include_reply:
-            children.append(Static(question.reply_text or "", classes="log_block"))
-        classes = "log_entry archive_entry" if include_reply else "log_entry current_entry"
-        return Vertical(*children, classes=classes)
+        return "\n".join(lines)
 
-    def _status_style(self, status: str) -> str:
-        return {
-            "queued": "yellow",
-            "active": "green",
-            "timed_out": "red",
-            "answered": "cyan",
-        }.get(status, "white")
+    def _render_log_lines(self, questions) -> str:
+        if not questions:
+            return ""
+
+        lines = []
+        for question in questions:
+            lines.append(
+                f"{format_timestamp(question.created_at)}: question: {self._clip(question.text, 40)}"
+            )
+            lines.append(
+                f"{format_timestamp(question.answered_at)}: answer: {self._clip(question.reply_text or '', 42)}"
+            )
+        return "\n".join(lines)
+
+    def _clip(self, text: str, limit: int) -> str:
+        cleaned = " ".join(text.split())
+        if len(cleaned) <= limit:
+            return cleaned
+        return f"{cleaned[:limit - 3]}..."
 
     @on(Input.Submitted, "#question_input")
     async def handle_submit(self, event: Input.Submitted) -> None:
