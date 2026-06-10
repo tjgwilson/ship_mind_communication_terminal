@@ -63,6 +63,11 @@ class ShipCoreConsole(App[None]):
         margin-bottom: 1;
     }
 
+    #instructions {
+        height: 3;
+        color: #d4ff8f;
+    }
+
     .log_panel {
         border: solid #113a20;
         background: #020904;
@@ -88,7 +93,11 @@ class ShipCoreConsole(App[None]):
         yield Static("SHIPS CORE OFFLINE", id="status_line")
         with Horizontal(id="main"):
             with Vertical(classes="panel", id="entry_panel"):
-                yield Static("UPLINK INPUT", classes="panel_title")
+                yield Static("QUERY SHIPS CORE", classes="panel_title")
+                yield Static(
+                    "To query the core please enter question into box\nand await reply.",
+                    id="instructions",
+                )
                 yield Input(placeholder="Write message and press Enter", id="question_input", max_length=100)
             with Vertical(classes="panel"):
                 yield Static("QUESTION QUEUE", classes="panel_title")
