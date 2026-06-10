@@ -1,14 +1,10 @@
 from __future__ import annotations
-
-import logging
 from datetime import datetime, timezone
 
 from .config import settings
 from .meshtastic_gateway import GatewayConfig, MeshtasticGateway
 from .models import PanelState, QuestionCreate, ReplyCreate
 from .queue_manager import QueueManager
-
-logger = logging.getLogger(__name__)
 
 
 def _parse_timestamp(value: str | None) -> datetime | None:
@@ -38,9 +34,7 @@ class ShipCoreRuntime:
         await self.dispatch_next_question()
 
     async def dispatch_next_question(self) -> None:
-        expired = await self.queue_manager.expire_active_question()
-        if expired is not None:
-            logger.warning("Question %s timed out", expired.id)
+        await self.queue_manager.expire_active_question()
 
         active = await self.queue_manager.active_question()
         if active is not None:
@@ -85,9 +79,7 @@ class ShipCoreRuntime:
             return
 
         reply = self._mock_reply_text(active.text)
-        answered = await self.queue_manager.answer_active(ReplyCreate(reply_text=reply))
-        if answered is not None:
-            logger.info("MOCK REPLY <- %s", answered.id)
+        await self.queue_manager.answer_active(ReplyCreate(reply_text=reply))
 
     def _mock_reply_text(self, prompt: str) -> str:
         cleaned = prompt.strip().rstrip("?.!")

@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import logging
 
 from .models import Question
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass(slots=True)
@@ -36,7 +33,6 @@ class MeshtasticGateway:
 
     def connect(self) -> None:
         if self._config.mode == "mock":
-            logger.info("Starting Meshtastic gateway in mock mode")
             return
 
         if self._config.mode != "serial":
@@ -45,16 +41,13 @@ class MeshtasticGateway:
         try:
             from meshtastic.serial_interface import SerialInterface
         except Exception as exc:  # pragma: no cover - import failure is runtime-specific
-            logger.exception("Meshtastic dependency import failed")
             raise RuntimeError("Could not import Meshtastic serial interface") from exc
 
-        logger.info("Connecting to Meshtastic device on %s", self._config.device)
         self._client = SerialInterface(devPath=self._config.device)
         self._online = True
 
     def send_question(self, question: Question) -> None:
         if self._config.mode == "mock":
-            logger.info("MOCK SEND -> %s: %s", self._config.responder_id, question.text)
             return
 
         if self._client is None:
@@ -69,4 +62,3 @@ class MeshtasticGateway:
         # This broadcast-style send is the safe starting point. You can replace it
         # with direct node routing once you confirm the responder node ID layout.
         self._client.sendText(message, channelIndex=self._config.channel)
-        logger.info("Sent question %s over Meshtastic", question.id)

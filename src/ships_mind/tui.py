@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import logging
 from datetime import datetime
 
 from textual import on
@@ -9,8 +8,6 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Input, Static
 
 from .runtime import ShipCoreRuntime
-
-logging.basicConfig(level=logging.INFO)
 
 
 def format_timestamp(value: str | None) -> str:
@@ -88,7 +85,7 @@ class ShipCoreConsole(App[None]):
 
     def compose(self) -> ComposeResult:
         yield Header(show_clock=True)
-        yield Static("REFERENCE LISTENING", id="status_line")
+        yield Static("SHIPS CORE OFFLINE", id="status_line")
         with Horizontal(id="main"):
             with Vertical(classes="panel", id="entry_panel"):
                 yield Static("UPLINK INPUT", classes="panel_title")
@@ -148,7 +145,7 @@ class ShipCoreConsole(App[None]):
 
         self._last_render_key = render_key
         status_line = self.query_one("#status_line", Static)
-        status_line.update("SHIPS CORE ACTIVE" if state.radio_online else "REFERENCE LISTENING")
+        status_line.update("SHIPS CORE ACTIVE" if state.radio_online else "SHIPS CORE OFFLINE")
 
         current_log = self.query_one("#current_log", Static)
         current_log.update(self._render_queue_lines(current_questions))
