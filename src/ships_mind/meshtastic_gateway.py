@@ -23,6 +23,14 @@ class MeshtasticGateway:
         self._client = None
 
     @property
+    def mode(self) -> str:
+        return self._config.mode
+
+    @property
+    def responder_id(self) -> str:
+        return self._config.responder_id
+
+    @property
     def online(self) -> bool:
         return self._online
 

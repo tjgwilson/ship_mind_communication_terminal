@@ -1,72 +1,38 @@
-# Ship's Core Communications Console
+# Ship's Core Terminal Console
 
-Local Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" question-and-response experience.
+Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" question-and-response experience.
 
 ## What this does
 
-- Accepts questions from a browser UI running on the Raspberry Pi
+- Runs directly in the Raspberry Pi console on Raspberry Pi OS Lite
+- Accepts local questions from keyboard input in a full-screen terminal UI
 - Stores questions in a local queue on the Pi
-- Sends only one question at a time to the responder's T-Beam/phone setup
-- Waits for a responder reply before sending the next queued question
-- Shows a three-panel sci-fi control interface for the operator
+- Sends only one question at a time to the responder's T-Beam setup
+- Waits for a reply before advancing the queue
+- Shows three dense sci-fi panels for input, current queue, and answered history
 
 ## Project layout
 
 - `requirements.txt` - Python dependencies
-- `src/ships_mind/` - application code
+- `src/ships_mind/` - queue, gateway, runtime, and terminal UI
 - `scripts/start_pi.sh` - local run script
-- `scripts/start_kiosk.sh` - starts the local HDMI kiosk display on Raspberry Pi OS Lite
-- `systemd/ships-mind.service` - service file for auto-start on Raspberry Pi OS
-- `systemd/ships-core-kiosk.service` - kiosk display service for Raspberry Pi OS Lite
+- `systemd/ships-core@.service` - terminal service template for Raspberry Pi boot
 
 ## Recommended Pi setup
 
-Tested target:
+Target:
 
 - Raspberry Pi 5
-- Raspberry Pi OS Bookworm
+- Raspberry Pi OS Lite (64-bit)
 - Python 3.11+
 - One LILYGO T-Beam connected by USB to the Pi
 
-Suggested OS setup:
+Install base packages:
 
 ```bash
 sudo apt update
-sudo apt install -y python3 python3-venv python3-pip git tmux
+sudo apt install -y git python3 python3-venv python3-pip tmux
 ```
-
-For Raspberry Pi OS Lite with a screen connected directly to the Pi, also install the minimal display stack:
-
-```bash
-sudo apt install -y xserver-xorg x11-xserver-utils xinit openbox chromium-browser unclutter curl
-```
-
-## Terminal access on the Pi
-
-Enable SSH:
-
-```bash
-sudo raspi-config
-```
-
-Then:
-
-1. Go to `Interface Options`
-2. Enable `SSH`
-3. Find the Pi IP with `hostname -I`
-4. SSH in from your laptop:
-
-```bash
-ssh pi@YOUR_PI_IP
-```
-
-For a resilient remote terminal session, use `tmux`:
-
-```bash
-tmux new -s shipsmind
-```
-
-Detach with `Ctrl+B`, then `D`.
 
 ## Install the app
 
@@ -77,100 +43,76 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+chmod +x scripts/start_pi.sh
 ```
 
-## Run in mock mode first
+## Run in mock mode
 
-Mock mode lets you test the queue and UI before Meshtastic is wired up.
+Mock mode keeps the full queue flow but generates an automatic reply after a short delay so you can test the screen without the radio link:
 
 ```bash
 source .venv/bin/activate
 ./scripts/start_pi.sh
 ```
 
-Then open:
+## Run on boot in the Pi console
 
-```text
-http://YOUR_PI_IP:8000
-```
+The service template runs the terminal UI directly on `tty1`, so no browser, X server, or kiosk stack is needed.
 
-## Run directly on Raspberry Pi OS Lite
-
-Raspberry Pi OS Lite does not include a browser or desktop. To show the console on a screen connected to the Pi, this project uses a minimal kiosk setup:
-
-- `ships-mind.service` runs the Python web app
-- `ships-core-kiosk.service` starts a tiny X session and opens Chromium full screen
-- the kiosk loads `http://127.0.0.1:8000`, so it works without a network browser
-
-Install the app and the Lite display packages first, then install both services:
+Install the service:
 
 ```bash
-sudo cp systemd/ships-mind.service /etc/systemd/system/ships-mind.service
-sudo cp systemd/ships-core-kiosk.service /etc/systemd/system/ships-core-kiosk.service
+sudo cp systemd/ships-core@.service /etc/systemd/system/ships-core@.service
 sudo systemctl daemon-reload
-sudo systemctl enable ships-mind ships-core-kiosk
-sudo systemctl start ships-mind ships-core-kiosk
+sudo systemctl enable ships-core@YOUR_USERNAME
+sudo systemctl start ships-core@YOUR_USERNAME
 ```
 
-Check them with:
+Example for user `tjgw`:
 
 ```bash
-systemctl status ships-mind
-systemctl status ships-core-kiosk
+sudo systemctl enable ships-core@tjgw
+sudo systemctl start ships-core@tjgw
 ```
 
-If Chromium is installed under a different command name on your Pi, edit `SHIPS_CORE_CHROMIUM_BIN` in `systemd/ships-core-kiosk.service`. Try `chromium` if `chromium-browser` is not present.
+Check status:
+
+```bash
+systemctl status ships-core@YOUR_USERNAME
+```
+
+The service template assumes the project lives at `/home/YOUR_USERNAME/ship_mind_communication`.
+If you cloned it under a different folder name such as `ship_mind_communication_terminal`, either rename the folder or edit the service file after copying it into `/etc/systemd/system/`.
 
 ## Environment variables
 
 Optional environment variables:
 
-- `SHIPS_MIND_HOST` default `0.0.0.0`
-- `SHIPS_MIND_PORT` default `8000`
 - `SHIPS_MIND_DATA_DIR` default `./data`
 - `SHIPS_MIND_RESPONDER_ID` default `remote_responder`
 - `SHIP_MESHTASTIC_MODE` default `mock`
 - `SHIP_MESHTASTIC_DEVICE` default `/dev/ttyACM0`
 - `SHIP_MESHTASTIC_CHANNEL` default `0`
+- `SHIP_ACTIVE_TIMEOUT_SECONDS` default `900`
+- `SHIP_MOCK_REPLY_SECONDS` default `12`
 
 ## Meshtastic notes
 
-This scaffold includes a gateway layer with:
+This version keeps a swappable gateway layer with:
 
 - `mock` mode for local testing
-- a `serial` mode placeholder for a USB-connected T-Beam
+- `serial` mode placeholder for a USB-connected T-Beam
 
 Before live use you will likely need to:
 
 1. Confirm the connected T-Beam serial path with `ls /dev/ttyACM* /dev/ttyUSB*`
 2. Pair and test the device with the Meshtastic Python tooling
-3. Extend `src/ships_mind/meshtastic_gateway.py` with your exact responder node/channel logic
+3. Extend `src/ships_mind/meshtastic_gateway.py` for the exact responder node and inbound reply flow you want
 
-The code is structured so that queueing and UI logic stay stable while radio details evolve.
+## Operator flow
 
-## Production run with systemd
-
-Copy and adapt the service file:
-
-```bash
-sudo cp systemd/ships-mind.service /etc/systemd/system/ships-mind.service
-sudo systemctl daemon-reload
-sudo systemctl enable ships-mind
-sudo systemctl start ships-mind
-sudo systemctl status ships-mind
-```
-
-You will need to edit the service file paths so they match your Pi username and project location.
-
-## Main operator flow
-
-1. Visitor types a question into the Pi UI
-2. Question is added to the queue
-3. If nothing is currently active, the question is transmitted to the responder
-4. Responder replies in character as the ship
-5. Reply marks the active question complete
-6. The next queued question is transmitted automatically
-
-## Next hardware step
-
-Once the UI and queue flow look right in mock mode, the next practical step is connecting the real Meshtastic serial client inside `meshtastic_gateway.py`.
+1. Enter a name or callsign
+2. Enter the question
+3. Submit the query to the core
+4. The question becomes active when the radio path is free
+5. A reply advances the queue and moves the exchange into history
