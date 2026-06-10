@@ -16,6 +16,8 @@ Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" 
 - `requirements.txt` - Python dependencies
 - `src/ships_mind/` - queue, gateway, runtime, and terminal UI
 - `scripts/start_pi.sh` - local run script
+- `scripts/install_console_autostart.sh` - recommended boot setup for Pi console autologin
+- `scripts/remove_console_autostart.sh` - removes the console autostart hook
 - `scripts/install_service.sh` - installs and enables the boot service
 - `systemd/ships-core@.service` - terminal service template for Raspberry Pi boot
 
@@ -58,28 +60,56 @@ source .venv/bin/activate
 
 ## Run on boot in the Pi console
 
-The service template runs the terminal UI directly on `tty1`, so no browser, X server, or kiosk stack is needed.
+Recommended approach:
+use Raspberry Pi OS `Console Autologin`, then launch the app from the user's `tty1` shell. This avoids the screen glitches caused by a separate service fighting the login console.
 
-Install the service:
+1. Enable autologin:
 
 ```bash
-chmod +x scripts/install_service.sh
-./scripts/install_service.sh YOUR_USERNAME
+sudo raspi-config
+```
+
+Choose:
+
+```text
+System Options
+Boot / Auto Login
+Console Autologin
+```
+
+2. Install the console autostart hook:
+
+```bash
+chmod +x scripts/start_pi.sh scripts/install_console_autostart.sh
+./scripts/install_console_autostart.sh YOUR_USERNAME
 ```
 
 Example for user `tjgw`:
 
 ```bash
-./scripts/install_service.sh tjgw
+./scripts/install_console_autostart.sh tjgw
 ```
 
-Check status:
+3. If you previously enabled the old `tty1` service, disable it:
 
 ```bash
-systemctl status ships-core@YOUR_USERNAME
+sudo systemctl disable --now ships-core@YOUR_USERNAME
 ```
 
-The installer rewrites the service to use your current checkout path and `.venv` interpreter, then enables restart on boot through `systemd`.
+4. Reboot:
+
+```bash
+sudo reboot
+```
+
+To remove the autostart later:
+
+```bash
+./scripts/remove_console_autostart.sh YOUR_USERNAME
+```
+
+Legacy option:
+`scripts/install_service.sh` still installs the original `systemd` service, but that direct-`tty1` approach can glitch the console on some Pi setups and is no longer the recommended path.
 
 If the app restarts while a question is already active, startup now retransmits that in-flight question instead of silently leaving it stuck in the active state.
 
