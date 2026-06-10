@@ -1,0 +1,17 @@
+[Unit]
+Description=Ship's Core HDMI Kiosk
+After=systemd-user-sessions.service ships-mind.service
+Requires=ships-mind.service
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/ship_mind_communication
+Environment=SHIPS_CORE_KIOSK_URL=http://127.0.0.1:8000
+Environment=SHIPS_CORE_CHROMIUM_BIN=chromium-browser
+ExecStart=/home/pi/ship_mind_communication/scripts/start_kiosk.sh
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
