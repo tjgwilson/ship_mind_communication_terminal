@@ -85,6 +85,7 @@ class ShipCoreConsole(App[None]):
         border: solid #1f7a45;
         margin-bottom: 1;
         padding: 0 1 1 1;
+        height: auto;
     }
 
     .log_head {
@@ -97,6 +98,28 @@ class ShipCoreConsole(App[None]):
         margin-top: 1;
         padding: 0 1;
         color: #d3ffe1;
+    }
+
+    .current_entry {
+        height: 7;
+        min-height: 7;
+        max-height: 7;
+    }
+
+    .current_entry .log_block {
+        height: 3;
+        overflow: hidden;
+    }
+
+    .archive_entry {
+        height: 10;
+        min-height: 10;
+        max-height: 10;
+    }
+
+    .archive_entry .log_block {
+        height: 3;
+        overflow: hidden;
     }
 
     .empty_note {
@@ -152,7 +175,7 @@ class ShipCoreConsole(App[None]):
     async def refresh_view(self) -> None:
         state = await self.runtime.state()
         current_questions = state.current_questions[:10]
-        answered_questions = state.answered_questions[:5]
+        answered_questions = state.answered_questions[:10]
         render_key = (
             state.radio_online,
             tuple(
@@ -216,7 +239,8 @@ class ShipCoreConsole(App[None]):
         children.append(Static(f"QUESTION\n{question.text}", classes="log_block"))
         if include_reply:
             children.append(Static(f"REPLY\n{question.reply_text or ''}", classes="log_block"))
-        return Vertical(*children, classes="log_entry")
+        classes = "log_entry archive_entry" if include_reply else "log_entry current_entry"
+        return Vertical(*children, classes=classes)
 
     def _status_style(self, status: str) -> str:
         return {
