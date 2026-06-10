@@ -4,8 +4,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from ships_mind.commands import is_clear_command
 from ships_mind.meshtastic_gateway import GatewayConfig, IncomingReply, MeshtasticGateway
-from ships_mind.models import QuestionCreate
+from ships_mind.models import QuestionCreate, ReplyCreate
 from ships_mind.queue_manager import QueueManager
 from ships_mind.runtime import ShipCoreRuntime
 
@@ -59,6 +60,78 @@ class MeshtasticGatewayTests(unittest.TestCase):
 
 
 class ShipCoreRuntimeReplyTests(unittest.IsolatedAsyncioTestCase):
+    async def test_clear_questions_removes_only_pending_items(self) -> None:
+        runtime = ShipCoreRuntime.__new__(ShipCoreRuntime)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime.queue_manager = QueueManager(Path(temp_dir), "remote_responder", 900)
+
+            class StubGateway:
+                def __init__(self) -> None:
+                    self.mode = "serial"
+                    self.online = True
+
+                def send_question(self, question) -> None:
+                    return None
+
+                def consume_reply(self):
+                    return None
+
+            runtime.gateway = StubGateway()
+
+            first = await runtime.queue_manager.enqueue(QuestionCreate(text="First question"))
+            second = await runtime.queue_manager.enqueue(QuestionCreate(text="Second question"))
+            await runtime.queue_manager.mark_active(first.id)
+            await runtime.queue_manager.answer_active(ReplyCreate(reply_text="Resolved"))
+
+            state_before = await runtime.queue_manager.state(runtime.gateway.online)
+            self.assertEqual(len(state_before.current_questions), 1)
+            self.assertEqual(len(state_before.answered_questions), 1)
+
+            await runtime.clear_questions()
+
+            state_after = await runtime.queue_manager.state(runtime.gateway.online)
+            self.assertIsNone(state_after.active_question)
+            self.assertEqual(state_after.current_questions, [])
+            self.assertEqual(len(state_after.answered_questions), 1)
+            self.assertEqual(state_after.answered_questions[0].text, "First question")
+            self.assertIsNone(state_after.last_transmission)
+
+    async def test_initialize_resends_persisted_active_question(self) -> None:
+        runtime = ShipCoreRuntime.__new__(ShipCoreRuntime)
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            runtime.queue_manager = QueueManager(Path(temp_dir), "remote_responder", 900)
+
+            class StubGateway:
+                def __init__(self) -> None:
+                    self.mode = "serial"
+                    self.online = True
+                    self.connected = False
+                    self.sent_questions: list[str] = []
+
+                def connect(self) -> None:
+                    self.connected = True
+
+                def send_question(self, question) -> None:
+                    self.sent_questions.append(question.text)
+
+                def consume_reply(self):
+                    return None
+
+            runtime.gateway = StubGateway()
+
+            first = await runtime.queue_manager.enqueue(QuestionCreate(text="Recover me"))
+            await runtime.queue_manager.mark_active(first.id)
+
+            await runtime.initialize()
+
+            state = await runtime.queue_manager.state(runtime.gateway.online)
+            self.assertTrue(runtime.gateway.connected)
+            self.assertIsNotNone(state.active_question)
+            self.assertEqual(state.active_question.text, "Recover me")
+            self.assertEqual(runtime.gateway.sent_questions, ["Recover me"])
+
     async def test_live_reply_answers_active_question_and_activates_next(self) -> None:
         runtime = ShipCoreRuntime.__new__(ShipCoreRuntime)
 
@@ -96,6 +169,15 @@ class ShipCoreRuntimeReplyTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(state.active_question.text, "Second question")
             self.assertEqual(runtime.gateway.sent_questions, ["Second question"])
             self.assertEqual(second.id, state.active_question.id)
+
+
+class TuiCommandTests(unittest.TestCase):
+    def test_clear_command_recognizes_reserved_input(self) -> None:
+        self.assertTrue(is_clear_command("clear"))
+        self.assertTrue(is_clear_command("/clear"))
+        self.assertTrue(is_clear_command("  CLEAR  "))
+        self.assertFalse(is_clear_command("clear this queue please"))
+        self.assertFalse(is_clear_command("normal question"))
 
 
 if __name__ == "__main__":

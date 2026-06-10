@@ -7,6 +7,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Input, Static
 
+from .commands import is_clear_command
 from .runtime import ShipCoreRuntime
 
 
@@ -14,8 +15,6 @@ def format_timestamp(value: str | None) -> str:
     if not value:
         return "--:--:--"
     return datetime.fromisoformat(value).astimezone().strftime("%H:%M:%S")
-
-
 class ShipCoreConsole(App[None]):
     CSS = """
     Screen {
@@ -95,7 +94,7 @@ class ShipCoreConsole(App[None]):
             with Vertical(classes="panel", id="entry_panel"):
                 yield Static("QUERY SHIPS CORE", classes="panel_title")
                 yield Static(
-                    "To query the core please enter question into box\nand await reply.",
+                    "Type a question and press Enter.\nType clear or /clear to wipe the queue.",
                     id="instructions",
                 )
                 yield Input(placeholder="Write message and press Enter", id="question_input", max_length=100)
@@ -201,6 +200,13 @@ class ShipCoreConsole(App[None]):
             return
 
         if len(text) > 100:
+            return
+
+        if is_clear_command(text):
+            await self.runtime.clear_questions()
+            question_input = self.query_one("#question_input", Input)
+            question_input.value = ""
+            await self.refresh_view()
             return
 
         await self.runtime.submit_question(text)

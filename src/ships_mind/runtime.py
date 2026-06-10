@@ -31,6 +31,13 @@ class ShipCoreRuntime:
 
     async def initialize(self) -> None:
         self.gateway.connect()
+        await self.queue_manager.expire_active_question()
+
+        active = await self.queue_manager.active_question()
+        if active is not None:
+            self.gateway.send_question(active)
+            return
+
         await self.dispatch_next_question()
 
     async def dispatch_next_question(self) -> None:
@@ -54,6 +61,9 @@ class ShipCoreRuntime:
         question = await self.queue_manager.enqueue(QuestionCreate(text=text))
         await self.dispatch_next_question()
         return question
+
+    async def clear_questions(self) -> None:
+        await self.queue_manager.clear_pending()
 
     async def state(self) -> PanelState:
         return await self.queue_manager.state(self.gateway.online)

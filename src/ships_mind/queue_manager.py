@@ -108,6 +108,14 @@ class QueueManager:
             self._save()
             return active
 
+    async def clear_pending(self) -> None:
+        async with self._lock:
+            self._questions = [
+                question for question in self._questions if question.status == QuestionStatus.answered
+            ]
+            self._last_transmission = None
+            self._save()
+
     async def next_queued(self) -> Question | None:
         async with self._lock:
             return next((q for q in self._questions if q.status == QuestionStatus.queued), None)

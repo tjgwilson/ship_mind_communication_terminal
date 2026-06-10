@@ -16,6 +16,7 @@ Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" 
 - `requirements.txt` - Python dependencies
 - `src/ships_mind/` - queue, gateway, runtime, and terminal UI
 - `scripts/start_pi.sh` - local run script
+- `scripts/install_service.sh` - installs and enables the boot service
 - `systemd/ships-core@.service` - terminal service template for Raspberry Pi boot
 
 ## Recommended Pi setup
@@ -62,17 +63,14 @@ The service template runs the terminal UI directly on `tty1`, so no browser, X s
 Install the service:
 
 ```bash
-sudo cp systemd/ships-core@.service /etc/systemd/system/ships-core@.service
-sudo systemctl daemon-reload
-sudo systemctl enable ships-core@YOUR_USERNAME
-sudo systemctl start ships-core@YOUR_USERNAME
+chmod +x scripts/install_service.sh
+./scripts/install_service.sh YOUR_USERNAME
 ```
 
 Example for user `tjgw`:
 
 ```bash
-sudo systemctl enable ships-core@tjgw
-sudo systemctl start ships-core@tjgw
+./scripts/install_service.sh tjgw
 ```
 
 Check status:
@@ -81,8 +79,9 @@ Check status:
 systemctl status ships-core@YOUR_USERNAME
 ```
 
-The service template assumes the project lives at `/home/YOUR_USERNAME/ship_mind_communication`.
-If you cloned it under a different folder name such as `ship_mind_communication_terminal`, either rename the folder or edit the service file after copying it into `/etc/systemd/system/`.
+The installer rewrites the service to use your current checkout path and `.venv` interpreter, then enables restart on boot through `systemd`.
+
+If the app restarts while a question is already active, startup now retransmits that in-flight question instead of silently leaving it stuck in the active state.
 
 ## Environment variables
 
