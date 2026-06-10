@@ -68,11 +68,6 @@ class ShipCoreConsole(App[None]):
         margin-bottom: 1;
     }
 
-    #instructions {
-        color: #d4ff8f;
-        height: 4;
-    }
-
     .log_panel {
         border: solid #113a20;
         background: #020904;
@@ -101,29 +96,25 @@ class ShipCoreConsole(App[None]):
     }
 
     .current_entry {
-        height: 7;
-        min-height: 7;
-        max-height: 7;
+        height: 6;
+        min-height: 6;
+        max-height: 6;
     }
 
     .current_entry .log_block {
-        height: 3;
+        height: 2;
         overflow: hidden;
     }
 
     .archive_entry {
-        height: 10;
-        min-height: 10;
-        max-height: 10;
+        height: 12;
+        min-height: 12;
+        max-height: 12;
     }
 
     .archive_entry .log_block {
-        height: 3;
+        height: 4;
         overflow: hidden;
-    }
-
-    .empty_note {
-        color: #6ab588;
     }
     """
 
@@ -144,17 +135,11 @@ class ShipCoreConsole(App[None]):
             with Vertical(classes="panel", id="entry_panel"):
                 yield Static("UPLINK INPUT", classes="panel_title")
                 yield Input(placeholder="Write message and press Enter", id="question_input", max_length=100)
-                yield Static(
-                    "Write message, press Enter, await response.\n"
-                    "Messages are limited to 100 characters.\n"
-                    "Replies appear from the radio channel.",
-                    id="instructions",
-                )
             with Vertical(classes="panel"):
-                yield Static("CURRENT LOG", classes="panel_title")
+                yield Static("QUESTION QUEUE", classes="panel_title")
                 yield Vertical(id="current_log", classes="log_panel")
             with Vertical(classes="panel"):
-                yield Static("QUESTIONS AND RESPONSES", classes="panel_title")
+                yield Static("QUESTION LOG", classes="panel_title")
                 yield Vertical(id="archive_log", classes="log_panel")
         yield Footer()
 
@@ -213,16 +198,12 @@ class ShipCoreConsole(App[None]):
         if current_questions:
             for question in current_questions:
                 await current_log.mount(self._build_log_entry(question, include_reply=False))
-        else:
-            await current_log.mount(Static("No current questions in the queue.", classes="empty_note"))
 
         archive_log = self.query_one("#archive_log", Vertical)
         await archive_log.remove_children()
         if answered_questions:
             for question in answered_questions:
                 await archive_log.mount(self._build_log_entry(question, include_reply=True))
-        else:
-            await archive_log.mount(Static("No responses recorded yet.", classes="empty_note"))
 
     def _build_log_entry(self, question: Question, include_reply: bool) -> Vertical:
         timestamp = question.answered_at if include_reply else question.created_at
