@@ -68,7 +68,7 @@ class ShipCoreConsole(App[None]):
         margin-bottom: 1;
     }
 
-    #flash_message {
+    #instructions {
         color: #d4ff8f;
         height: 4;
     }
@@ -148,7 +148,7 @@ class ShipCoreConsole(App[None]):
                     "Write message, press Enter, await response.\n"
                     "Messages are limited to 100 characters.\n"
                     "Replies appear from the radio channel.",
-                    id="flash_message",
+                    id="instructions",
                 )
             with Vertical(classes="panel"):
                 yield Static("CURRENT LOG", classes="panel_title")
@@ -236,9 +236,9 @@ class ShipCoreConsole(App[None]):
                 classes="log_head",
             )
         ]
-        children.append(Static(f"QUESTION\n{question.text}", classes="log_block"))
+        children.append(Static(question.text, classes="log_block"))
         if include_reply:
-            children.append(Static(f"REPLY\n{question.reply_text or ''}", classes="log_block"))
+            children.append(Static(question.reply_text or "", classes="log_block"))
         classes = "log_entry archive_entry" if include_reply else "log_entry current_entry"
         return Vertical(*children, classes=classes)
 
@@ -252,21 +252,17 @@ class ShipCoreConsole(App[None]):
 
     @on(Input.Submitted, "#question_input")
     async def handle_submit(self, event: Input.Submitted) -> None:
-        flash = self.query_one("#flash_message", Static)
         text = event.value.strip()
 
         if not text:
-            flash.update("Question field is empty.")
             return
 
         if len(text) > 100:
-            flash.update("Message too long. Keep it under 100 characters.")
             return
 
         await self.runtime.submit_question(text)
         question_input = self.query_one("#question_input", Input)
         question_input.value = ""
-        flash.update("Query accepted. Awaiting response from the channel.")
         await self.refresh_view()
 
     async def action_refresh_now(self) -> None:
