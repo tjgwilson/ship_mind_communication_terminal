@@ -18,6 +18,7 @@ Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" 
 - `scripts/start_pi.sh` - local run script
 - `scripts/install_console_autostart.sh` - recommended boot setup for Pi console autologin
 - `scripts/remove_console_autostart.sh` - removes the console autostart hook
+- `scripts/disable_autostart.sh` - disables both console and service autostart
 - `scripts/install_service.sh` - installs and enables the boot service
 - `systemd/ships-core@.service` - terminal service template for Raspberry Pi boot
 
@@ -119,7 +120,7 @@ sudo reboot
 To remove the autostart later:
 
 ```bash
-./scripts/remove_console_autostart.sh YOUR_USERNAME
+./scripts/disable_autostart.sh YOUR_USERNAME
 ```
 
 Legacy option:

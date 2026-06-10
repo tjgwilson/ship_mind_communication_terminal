@@ -7,7 +7,7 @@ from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Input, Static
 
-from .commands import is_clear_command
+from .commands import is_clear_command, is_quit_command
 from .runtime import ShipCoreRuntime
 
 
@@ -94,7 +94,7 @@ class ShipCoreConsole(App[None]):
             with Vertical(classes="panel", id="entry_panel"):
                 yield Static("QUERY SHIPS CORE", classes="panel_title")
                 yield Static(
-                    "Type a question and press Enter.\nType clear or /clear to wipe the queue.",
+                    "Type a question and press Enter.\nType clear to wipe queue, quit to exit.",
                     id="instructions",
                 )
                 yield Input(placeholder="Write message and press Enter", id="question_input", max_length=100)
@@ -110,6 +110,7 @@ class ShipCoreConsole(App[None]):
         self.title = "Ship's Core"
         await self.runtime.initialize()
         await self.refresh_view()
+        self.query_one("#question_input", Input).focus()
         self.set_interval(1.0, self._schedule_tick)
 
     async def _tick(self) -> None:
@@ -202,6 +203,10 @@ class ShipCoreConsole(App[None]):
             return
 
         if len(text) > 100:
+            return
+
+        if is_quit_command(text):
+            self.exit()
             return
 
         if is_clear_command(text):

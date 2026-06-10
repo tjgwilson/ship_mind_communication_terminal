@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ships_mind.commands import is_clear_command
+from ships_mind.commands import is_clear_command, is_quit_command
 from ships_mind.meshtastic_gateway import GatewayConfig, IncomingReply, MeshtasticGateway
 from ships_mind.models import QuestionCreate, ReplyCreate
 from ships_mind.queue_manager import QueueManager
@@ -178,6 +178,14 @@ class TuiCommandTests(unittest.TestCase):
         self.assertTrue(is_clear_command("  CLEAR  "))
         self.assertFalse(is_clear_command("clear this queue please"))
         self.assertFalse(is_clear_command("normal question"))
+
+    def test_quit_command_recognizes_reserved_input(self) -> None:
+        self.assertTrue(is_quit_command("quit"))
+        self.assertTrue(is_quit_command("/quit"))
+        self.assertTrue(is_quit_command("exit"))
+        self.assertTrue(is_quit_command("/exit"))
+        self.assertFalse(is_quit_command("exit the queue please"))
+        self.assertFalse(is_quit_command("normal question"))
 
 
 if __name__ == "__main__":
