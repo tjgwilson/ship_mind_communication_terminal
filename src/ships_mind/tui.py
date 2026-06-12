@@ -9,6 +9,7 @@ from textual.containers import Horizontal, Vertical
 from textual.widgets import Footer, Header, Input, Static
 
 from .commands import is_clear_command, is_quit_command
+from .rendering import wrap_labeled_line
 from .runtime import ShipCoreRuntime
 
 
@@ -177,8 +178,12 @@ class ShipCoreConsole(App[None]):
 
         lines = []
         for question in questions:
-            lines.append(
-                f"{format_timestamp(question.created_at)}: {question.status.value}: {self._clip(question.text, 44)}"
+            lines.extend(
+                wrap_labeled_line(
+                    format_timestamp(question.created_at),
+                    question.status.value,
+                    question.text,
+                )
             )
         return "\n".join(lines)
 
@@ -186,24 +191,25 @@ class ShipCoreConsole(App[None]):
         if not questions:
             return ""
 
-        lines = []
+        entries = []
         for question in questions:
-            lines.append(
-                f"{format_timestamp(question.created_at)}: question: {self._clip(question.text, 40)}"
+            entry_lines = wrap_labeled_line(
+                format_timestamp(question.created_at),
+                "question",
+                question.text,
             )
             if question.status.value == "timed_out":
-                lines.append(f"{format_timestamp(question.timed_out_at)}: timed out")
+                entry_lines.append(f"{format_timestamp(question.timed_out_at)}: timed out")
             else:
-                lines.append(
-                    f"{format_timestamp(question.answered_at)}: answer: {self._clip(question.reply_text or '', 42)}"
+                entry_lines.extend(
+                    wrap_labeled_line(
+                        format_timestamp(question.answered_at),
+                        "answer",
+                        question.reply_text or "",
+                    )
                 )
-        return "\n".join(lines)
-
-    def _clip(self, text: str, limit: int) -> str:
-        cleaned = " ".join(text.split())
-        if len(cleaned) <= limit:
-            return cleaned
-        return f"{cleaned[:limit - 3]}..."
+            entries.append("\n".join(entry_lines))
+        return "\n\n".join(entries)
 
     @on(Input.Submitted, "#question_input")
     async def handle_submit(self, event: Input.Submitted) -> None:

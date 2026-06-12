@@ -8,6 +8,7 @@ from ships_mind.commands import is_clear_command, is_quit_command
 from ships_mind.meshtastic_gateway import GatewayConfig, IncomingReply, MeshtasticGateway
 from ships_mind.models import QuestionCreate, ReplyCreate
 from ships_mind.queue_manager import QueueManager
+from ships_mind.rendering import wrap_labeled_line
 from ships_mind.runtime import ShipCoreRuntime
 
 
@@ -312,6 +313,19 @@ class TuiCommandTests(unittest.TestCase):
         self.assertTrue(is_quit_command("/exit"))
         self.assertFalse(is_quit_command("exit the queue please"))
         self.assertFalse(is_quit_command("normal question"))
+
+
+class TuiRenderTests(unittest.TestCase):
+    def test_wrap_labeled_line_does_not_clip_long_text(self) -> None:
+        text = "This is a deliberately long question that should wrap across several lines clearly"
+
+        rendered = "\n".join(wrap_labeled_line("10:20:30", "question", text, width=42))
+
+        self.assertNotIn("...", rendered)
+        self.assertIn("deliberately", rendered)
+        self.assertIn("long question", rendered)
+        self.assertIn("several lines clearly", rendered)
+        self.assertGreater(rendered.count("\n"), 0)
 
 
 if __name__ == "__main__":
