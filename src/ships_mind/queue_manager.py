@@ -42,12 +42,16 @@ class QueueManager:
         current = [
             q
             for q in self._questions
-            if q.status in {QuestionStatus.queued, QuestionStatus.active, QuestionStatus.timed_out}
+            if q.status in {QuestionStatus.queued, QuestionStatus.active}
         ]
         return list(reversed(current[-24:]))
 
     def _answered_questions_unlocked(self) -> list[Question]:
-        answered = [q for q in self._questions if q.status == QuestionStatus.answered]
+        answered = [
+            q
+            for q in self._questions
+            if q.status in {QuestionStatus.answered, QuestionStatus.timed_out}
+        ]
         return list(reversed(answered[-12:]))
 
     def _parse_timestamp(self, value: str | None) -> datetime | None:
@@ -111,10 +115,23 @@ class QueueManager:
     async def clear_pending(self) -> None:
         async with self._lock:
             self._questions = [
-                question for question in self._questions if question.status == QuestionStatus.answered
+                question
+                for question in self._questions
+                if question.status in {QuestionStatus.answered, QuestionStatus.timed_out}
             ]
             self._last_transmission = None
             self._save()
+
+    async def timeout_active(self) -> Question | None:
+        async with self._lock:
+            active = self._active_question_unlocked()
+            if active is None:
+                return None
+
+            active.status = QuestionStatus.timed_out
+            active.timed_out_at = utc_now()
+            self._save()
+            return active
 
     async def next_queued(self) -> Question | None:
         async with self._lock:
@@ -128,7 +145,7 @@ class QueueManager:
         async with self._lock:
             return self._active_question_unlocked()
 
-    async def state(self, radio_online: bool) -> PanelState:
+    async def state(self, radio_online: bool, radio_error: str | None = None) -> PanelState:
         async with self._lock:
             self._expire_active_question_unlocked()
             return PanelState(
@@ -136,6 +153,7 @@ class QueueManager:
                 current_questions=self._current_questions_unlocked(),
                 answered_questions=self._answered_questions_unlocked(),
                 radio_online=radio_online,
+                radio_error=radio_error,
                 responder_id=self._responder_id,
                 last_transmission=self._last_transmission,
             )

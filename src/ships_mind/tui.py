@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from rich.text import Text
 from textual import on
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
@@ -15,6 +16,8 @@ def format_timestamp(value: str | None) -> str:
     if not value:
         return "--:--:--"
     return datetime.fromisoformat(value).astimezone().strftime("%H:%M:%S")
+
+
 class ShipCoreConsole(App[None]):
     CSS = """
     Screen {
@@ -126,6 +129,7 @@ class ShipCoreConsole(App[None]):
         answered_questions = state.answered_questions[:10]
         render_key = (
             state.radio_online,
+            state.radio_error,
             tuple(
                 (
                     question.id,
@@ -154,9 +158,12 @@ class ShipCoreConsole(App[None]):
 
         self._last_render_key = render_key
         status_line = self.query_one("#status_line", Static)
-        mode = self.runtime.gateway.mode.upper()
         status = "ACTIVE" if state.radio_online else "OFFLINE"
-        status_line.update(f"SHIPS CORE {status} [{mode}]")
+        detail = f" - {state.radio_error}" if state.radio_error else ""
+        status_text = Text("SHIP'S CORE ")
+        status_text.append(status, style="bold green" if state.radio_online else "bold red")
+        status_text.append(detail)
+        status_line.update(status_text)
 
         current_log = self.query_one("#current_log", Static)
         current_log.update(self._render_queue_lines(current_questions))
@@ -184,9 +191,12 @@ class ShipCoreConsole(App[None]):
             lines.append(
                 f"{format_timestamp(question.created_at)}: question: {self._clip(question.text, 40)}"
             )
-            lines.append(
-                f"{format_timestamp(question.answered_at)}: answer: {self._clip(question.reply_text or '', 42)}"
-            )
+            if question.status.value == "timed_out":
+                lines.append(f"{format_timestamp(question.timed_out_at)}: timed out")
+            else:
+                lines.append(
+                    f"{format_timestamp(question.answered_at)}: answer: {self._clip(question.reply_text or '', 42)}"
+                )
         return "\n".join(lines)
 
     def _clip(self, text: str, limit: int) -> str:

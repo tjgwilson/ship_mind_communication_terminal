@@ -46,9 +46,9 @@ cat >> "$TMP_FILE" <<EOF
 $MARKER_BEGIN
 if [[ -z "\${SSH_TTY:-}" && "\$(tty)" == "/dev/tty1" ]]; then
     cd "$ROOT_DIR"
-    export SHIP_MESHTASTIC_MODE="\${SHIP_MESHTASTIC_MODE:-serial}"
-    export SHIP_MESHTASTIC_DEVICE="\${SHIP_MESHTASTIC_DEVICE:-/dev/ttyACM0}"
-    exec "$START_SCRIPT"
+    "$START_SCRIPT"
+    echo
+    echo "Ship's Core exited. You are back at the shell."
 fi
 $MARKER_END
 EOF

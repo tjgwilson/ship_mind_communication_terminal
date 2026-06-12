@@ -1,16 +1,8 @@
 from __future__ import annotations
-from datetime import datetime, timezone
-
 from .config import settings
 from .meshtastic_gateway import GatewayConfig, MeshtasticGateway
 from .models import PanelState, QuestionCreate, ReplyCreate
 from .queue_manager import QueueManager
-
-
-def _parse_timestamp(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    return datetime.fromisoformat(value)
 
 
 class ShipCoreRuntime:
@@ -22,7 +14,6 @@ class ShipCoreRuntime:
         )
         self.gateway = MeshtasticGateway(
             GatewayConfig(
-                mode=settings.meshtastic_mode,
                 device=settings.meshtastic_device,
                 channel=settings.meshtastic_channel,
                 responder_id=settings.responder_id,
@@ -35,13 +26,21 @@ class ShipCoreRuntime:
 
         active = await self.queue_manager.active_question()
         if active is not None:
-            self.gateway.send_question(active)
+            if self.gateway.online:
+                sent = self.gateway.send_question(active)
+                if not sent:
+                    await self.queue_manager.timeout_active()
+            else:
+                await self.queue_manager.timeout_active()
             return
 
         await self.dispatch_next_question()
 
     async def dispatch_next_question(self) -> None:
         await self.queue_manager.expire_active_question()
+
+        if not self.gateway.online:
+            return
 
         active = await self.queue_manager.active_question()
         if active is not None:
@@ -55,7 +54,9 @@ class ShipCoreRuntime:
         if activated is None:
             return
 
-        self.gateway.send_question(activated)
+        sent = self.gateway.send_question(activated)
+        if not sent:
+            await self.queue_manager.timeout_active()
 
     async def submit_question(self, text: str):
         question = await self.queue_manager.enqueue(QuestionCreate(text=text))
@@ -66,36 +67,19 @@ class ShipCoreRuntime:
         await self.queue_manager.clear_pending()
 
     async def state(self) -> PanelState:
-        return await self.queue_manager.state(self.gateway.online)
+        return await self.queue_manager.state(self.gateway.online, self.gateway.last_error)
 
     async def pump(self) -> None:
-        await self._apply_mock_reply_if_due()
+        self.gateway.check_connection()
+        if not self.gateway.online:
+            await self.queue_manager.timeout_active()
+            self.gateway.connect()
+            if not self.gateway.online:
+                return
         await self._apply_gateway_reply_if_available()
         await self.dispatch_next_question()
 
-    async def _apply_mock_reply_if_due(self) -> None:
-        if self.gateway.mode != "mock":
-            return
-
-        active = await self.queue_manager.active_question()
-        if active is None:
-            return
-
-        sent_at = _parse_timestamp(active.sent_at)
-        if sent_at is None:
-            return
-
-        elapsed = (datetime.now(timezone.utc) - sent_at).total_seconds()
-        if elapsed < settings.mock_reply_seconds:
-            return
-
-        reply = self._mock_reply_text(active.text)
-        await self.queue_manager.answer_active(ReplyCreate(reply_text=reply))
-
     async def _apply_gateway_reply_if_available(self) -> None:
-        if self.gateway.mode == "mock":
-            return
-
         active = await self.queue_manager.active_question()
         if active is None:
             self.gateway.consume_reply()
@@ -106,10 +90,3 @@ class ShipCoreRuntime:
             return
 
         await self.queue_manager.answer_active(ReplyCreate(reply_text=incoming.text))
-
-    def _mock_reply_text(self, prompt: str) -> str:
-        cleaned = prompt.strip().rstrip("?.!")
-        return (
-            f"The Ship's Core has received your query regarding {cleaned}. "
-            "Response lattice aligned. Further guidance will follow through the channel."
-        )

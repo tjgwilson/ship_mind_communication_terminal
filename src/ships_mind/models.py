@@ -42,5 +42,6 @@ class PanelState(BaseModel):
     current_questions: list[Question]
     answered_questions: list[Question]
     radio_online: bool
+    radio_error: str | None = None
     responder_id: str
     last_transmission: str | None

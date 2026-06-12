@@ -6,21 +6,25 @@ cd "$ROOT_DIR"
 
 export PYTHONPATH="$ROOT_DIR/src"
 export TERM="${TERM:-linux}"
-export SHIP_MESHTASTIC_MODE="${SHIP_MESHTASTIC_MODE:-serial}"
+export SHIP_RADIO_WAIT_SECONDS="${SHIP_RADIO_WAIT_SECONDS:-30}"
 
-if [[ "$SHIP_MESHTASTIC_MODE" == "serial" && -z "${SHIP_MESHTASTIC_DEVICE:-}" ]]; then
-    for device in /dev/ttyACM* /dev/ttyUSB*; do
-        if [[ -e "$device" ]]; then
-            export SHIP_MESHTASTIC_DEVICE="$device"
-            break
-        fi
+if [[ -z "${SHIP_MESHTASTIC_DEVICE:-}" ]]; then
+    deadline=$((SECONDS + SHIP_RADIO_WAIT_SECONDS))
+    while [[ "$SECONDS" -le "$deadline" ]]; do
+        for device in /dev/ttyACM* /dev/ttyUSB*; do
+            if [[ -e "$device" ]]; then
+                export SHIP_MESHTASTIC_DEVICE="$device"
+                break 2
+            fi
+        done
+        sleep 1
     done
 
     if [[ -z "${SHIP_MESHTASTIC_DEVICE:-}" ]]; then
-        echo "No Meshtastic serial device found." >&2
-        echo "Plug in the T-Beam and check: ls /dev/ttyACM* /dev/ttyUSB*" >&2
-        echo "Or run with: SHIP_MESHTASTIC_DEVICE=/dev/ttyUSB0 ./scripts/start_pi.sh" >&2
-        exit 1
+        echo "No Meshtastic serial device found after ${SHIP_RADIO_WAIT_SECONDS}s." >&2
+        echo "The app will still start offline and keep queued questions local." >&2
+        echo "Check the radio with: ./scripts/check_radio.sh" >&2
+        export SHIP_MESHTASTIC_DEVICE="/dev/ttyACM0"
     fi
 fi
 

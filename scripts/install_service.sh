@@ -5,8 +5,16 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 SERVICE_SOURCE="$ROOT_DIR/systemd/ships-core@.service"
 SERVICE_TARGET="/etc/systemd/system/ships-core@.service"
 RUN_USER="${1:-${SUDO_USER:-$USER}}"
-HOME_DIR="$(eval echo "~$RUN_USER")"
 PYTHON_BIN="$ROOT_DIR/.venv/bin/python"
+
+echo "This legacy tty1 systemd service is not recommended for this app." >&2
+echo "It can fight the Pi console and cause screen/input glitches." >&2
+echo "Use scripts/install_console_autostart.sh only if you accept that risk, or run manually." >&2
+echo "Set SHIP_ALLOW_TTY_SERVICE=1 to install it anyway." >&2
+
+if [[ "${SHIP_ALLOW_TTY_SERVICE:-}" != "1" ]]; then
+    exit 1
+fi
 
 if [[ ! -f "$SERVICE_SOURCE" ]]; then
     echo "Missing service template: $SERVICE_SOURCE" >&2

@@ -8,6 +8,10 @@ Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" 
 - Accepts local messages from keyboard input in a full-screen terminal UI
 - Stores questions in a local queue on the Pi
 - Sends only one question at a time to the responder's T-Beam setup
+- Checks the radio connection continuously while running
+- Keeps new questions queued while the radio is offline
+- Times out an active question if the radio drops mid-send, then moves it to the log
+- Automatically resumes with the next queued question when the radio comes back online
 - Waits for a reply before advancing the queue
 - Shows three dense sci-fi panels for input, current queue, and answered history
 
@@ -16,7 +20,7 @@ Terminal-first Raspberry Pi control panel for a Meshtastic-linked "Ship's Core" 
 - `requirements.txt` - Python dependencies
 - `src/ships_mind/` - queue, gateway, runtime, and terminal UI
 - `scripts/start_pi.sh` - local run script
-- `scripts/install_console_autostart.sh` - recommended boot setup for Pi console autologin
+- `scripts/install_console_autostart.sh` - installs console autostart setup
 - `scripts/remove_console_autostart.sh` - removes the console autostart hook
 - `scripts/disable_autostart.sh` - disables both console and service autostart
 - `scripts/install_service.sh` - installs and enables the boot service
@@ -47,16 +51,21 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
-chmod +x scripts/start_pi.sh scripts/start_mock.sh
+chmod +x scripts/start_pi.sh
 ```
 
-## Run with the radio
+## Run The App
 
-The normal Pi launcher starts in `serial` Meshtastic mode and automatically uses the first matching `/dev/ttyACM*` or `/dev/ttyUSB*` device:
+The normal Pi launcher starts the real radio app and automatically uses the first matching `/dev/ttyACM*` or `/dev/ttyUSB*` device:
 
 ```bash
 ./scripts/start_pi.sh
 ```
+
+The top status line shows the connection state:
+
+- `SHIP'S CORE ACTIVE` means the radio is connected and the queue can send.
+- `SHIP'S CORE OFFLINE` means the app is running, queueing new questions, and waiting for the radio to return.
 
 If you need to force a specific serial path, set it before launching:
 
@@ -71,20 +80,11 @@ chmod +x scripts/check_radio.sh
 ./scripts/check_radio.sh
 ```
 
-## Run in mock mode
+## Run On Boot
 
-Mock mode keeps the full queue flow but generates an automatic reply after a short delay so you can test the screen without the radio link:
+The intended boot setup is Raspberry Pi OS `Console Autologin`, then `scripts/start_pi.sh` from the user's `tty1` shell. The app shows `OFFLINE` if the radio is missing, keeps checking for the radio, and begins sending queued messages once the radio comes online.
 
-```bash
-./scripts/start_mock.sh
-```
-
-## Run on boot in the Pi console
-
-Recommended approach:
-use Raspberry Pi OS `Console Autologin`, then launch the app from the user's `tty1` shell. This avoids the screen glitches caused by a separate service fighting the login console.
-
-1. Enable autologin:
+1. Enable console autologin:
 
 ```bash
 sudo raspi-config
@@ -111,19 +111,7 @@ Example for user `tjgw`:
 ./scripts/install_console_autostart.sh tjgw
 ```
 
-The autostart hook launches the app in `serial` Meshtastic mode. The default radio path is `/dev/ttyACM0`.
-
-If your T-Beam appears on a different serial path, edit the generated block in `~/.bash_profile` and change:
-
-```bash
-export SHIP_MESHTASTIC_DEVICE="${SHIP_MESHTASTIC_DEVICE:-/dev/ttyACM0}"
-```
-
-For example:
-
-```bash
-export SHIP_MESHTASTIC_DEVICE="${SHIP_MESHTASTIC_DEVICE:-/dev/ttyUSB0}"
-```
+The autostart hook launches the real radio app and uses the same serial auto-detection as `scripts/start_pi.sh`.
 
 3. If you previously enabled the old `tty1` service, disable it:
 
@@ -154,18 +142,13 @@ Optional environment variables:
 
 - `SHIPS_MIND_DATA_DIR` default `./data`
 - `SHIPS_MIND_RESPONDER_ID` default `remote_responder`
-- `SHIP_MESHTASTIC_MODE` default `mock`
 - `SHIP_MESHTASTIC_DEVICE` default `/dev/ttyACM0`
 - `SHIP_MESHTASTIC_CHANNEL` default `0`
 - `SHIP_ACTIVE_TIMEOUT_SECONDS` default `900`
-- `SHIP_MOCK_REPLY_SECONDS` default `12`
 
 ## Meshtastic notes
 
-This version keeps a swappable gateway layer with:
-
-- `mock` mode for local testing
-- `serial` mode for a USB-connected T-Beam with outbound questions and inbound text replies
+This version uses a USB-connected T-Beam with outbound questions and inbound text replies.
 
 Before live use you will likely need to:
 

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass
+from glob import glob
+from pathlib import Path
 from typing import Any
 
 from .models import Question
@@ -9,7 +11,6 @@ from .models import Question
 
 @dataclass(slots=True)
 class GatewayConfig:
-    mode: str
     device: str
     channel: int
     responder_id: str
@@ -27,10 +28,7 @@ class MeshtasticGateway:
         self._online = False
         self._client = None
         self._incoming_replies: deque[IncomingReply] = deque()
-
-    @property
-    def mode(self) -> str:
-        return self._config.mode
+        self._last_error: str | None = None
 
     @property
     def responder_id(self) -> str:
@@ -40,30 +38,57 @@ class MeshtasticGateway:
     def online(self) -> bool:
         return self._online
 
+    @property
+    def last_error(self) -> str | None:
+        return self._last_error
+
+    def _find_serial_device(self) -> str | None:
+        devices = sorted(glob("/dev/ttyACM*")) + sorted(glob("/dev/ttyUSB*"))
+        return devices[0] if devices else None
+
+    def check_connection(self) -> None:
+        if self._online and not Path(self._config.device).exists():
+            self._client = None
+            self._online = False
+            self._last_error = f"Serial device disconnected: {self._config.device}"
+
     def connect(self) -> None:
-        if self._config.mode == "mock":
-            self._online = True
+        if self._online:
             return
 
-        if self._config.mode != "serial":
-            raise ValueError(f"Unsupported Meshtastic mode: {self._config.mode}")
+        if not Path(self._config.device).exists():
+            detected_device = self._find_serial_device()
+            if detected_device is not None:
+                self._config.device = detected_device
+
+        if not Path(self._config.device).exists():
+            self._online = False
+            self._last_error = f"Serial device not found: {self._config.device}"
+            return
 
         try:
             from pubsub import pub
             from meshtastic.serial_interface import SerialInterface
         except Exception as exc:  # pragma: no cover - import failure is runtime-specific
-            raise RuntimeError("Could not import Meshtastic serial interface") from exc
-
-        self._client = SerialInterface(devPath=self._config.device)
-        pub.subscribe(self._handle_incoming_text, "meshtastic.receive.text")
-        self._online = True
-
-    def send_question(self, question: Question) -> None:
-        if self._config.mode == "mock":
+            self._online = False
+            self._last_error = f"Could not import Meshtastic serial interface: {exc}"
             return
 
+        try:
+            self._client = SerialInterface(devPath=self._config.device)
+            pub.subscribe(self._handle_incoming_text, "meshtastic.receive.text")
+            self._online = True
+            self._last_error = None
+        except Exception as exc:  # pragma: no cover - hardware/runtime-specific
+            self._client = None
+            self._online = False
+            self._last_error = f"Could not open {self._config.device}: {exc}"
+
+    def send_question(self, question: Question) -> bool:
         if self._client is None:
-            raise RuntimeError("Meshtastic client is not connected")
+            self._online = False
+            self._last_error = "Meshtastic client is not connected"
+            return False
 
         message = (
             "Ship's Core query\n"
@@ -73,7 +98,14 @@ class MeshtasticGateway:
 
         # This broadcast-style send is the safe starting point. You can replace it
         # with direct node routing once you confirm the responder node ID layout.
-        self._client.sendText(message, channelIndex=self._config.channel)
+        try:
+            self._client.sendText(message, channelIndex=self._config.channel)
+            self._last_error = None
+            return True
+        except Exception as exc:  # pragma: no cover - hardware/runtime-specific
+            self._online = False
+            self._last_error = f"Could not send question: {exc}"
+            return False
 
     def consume_reply(self) -> IncomingReply | None:
         if not self._incoming_replies:
